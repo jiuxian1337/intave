@@ -77,11 +77,16 @@ public final class DomainCache {
     );
   }
 
+  private static final List<String> FALLBACK_BASE_DOMAINS = Collections.singletonList("intave.zkmjnic.tech");
+  private static final List<String> FALLBACK_SERVICE_DOMAINS = Collections.singletonList("service.zkmjnic.tech");
+
   private void selectPrimaryDomains() {
     sortedBaseDomains = baseLatencyMap.entrySet().stream().sorted(Map.Entry.comparingByValue()).map(Map.Entry::getKey).collect(Collectors.toList());
+    if (sortedBaseDomains.isEmpty()) sortedBaseDomains = FALLBACK_BASE_DOMAINS;
     sortedServiceDomains = serviceLatencyMap.entrySet().stream().sorted(Map.Entry.comparingByValue()).map(Map.Entry::getKey).collect(Collectors.toList());
-    selectedBaseDomain = sortedBaseDomains.isEmpty() ? "intave.de" : sortedBaseDomains.get(0);
-    selectedServiceDomain = sortedServiceDomains.isEmpty() ? "service.intave.de" : sortedServiceDomains.get(0);
+    if (sortedServiceDomains.isEmpty()) sortedServiceDomains = FALLBACK_SERVICE_DOMAINS;
+    selectedBaseDomain = sortedBaseDomains.get(0);
+    selectedServiceDomain = sortedServiceDomains.get(0);
   }
 
   public static Collector<String, ?, DomainCache> lineCollector() {
