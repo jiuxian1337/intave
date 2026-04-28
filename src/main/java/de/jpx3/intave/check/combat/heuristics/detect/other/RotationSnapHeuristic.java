@@ -235,7 +235,7 @@ public final class RotationSnapHeuristic extends MetaCheckPart<Heuristics, Rotat
 //        Entity.EntityPositionContext lastEntityPosition = entityPositions.get(entity.entityId());
 
         if (/*lastEntityPosition != null && */tick != null) {
-          BoundingBox lastBoundingBox = null;//Entity.entityBoundingBoxFrom(lastEntityPosition, entity);
+          BoundingBox lastBoundingBox = entity.boundingBox();
           Raytrace last = Raytracing.entityRaytrace(
             player,
             lastBoundingBox,
