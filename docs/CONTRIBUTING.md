@@ -1,7 +1,7 @@
 # Contributing
 
 ## Welcome
-Do you hate your life? Do you have no friends? Do you despise not feeling miserable?
+Do you hate your life? Do you have no friends? Do you enjoy misery?
 
 If you answered "yes" thrice, welcome aboard!
 We are always looking for enthusiastic ~~idiots~~ contributors helping us in times
@@ -20,6 +20,10 @@ While we know that 4-space indentation is the standard in Java, we prefer 2-spac
 If you want to work with 4-space indentation, convert the file to tabs and set your tab width to 2 spaces.
 This way, you can work with 4-space indentation in your editor, 
 but the codebase remains consistent with 2-space indentation.
+
+### Adding checks and sub-checks
+1. Do not create a completely new check (a class that extends the Check class) unless you consult with us beforehand.
+2. If you submit a heuristic sub-check (under ClickPatterns, Heuristics, PlacementAnalysis, etc.), describe in your PR why bypassing your check is difficult or tedious for cheat developers.
 
 ## How to contribute
 
