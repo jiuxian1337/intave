@@ -105,7 +105,7 @@ public class RotationFlick extends PlayerCheckPart<PlacementAnalysis> {
     Direction direction = Direction.getFront(enumDirection);
 
     Position blockMidpoint = new Position(blockPosition.getX() + 0.5, blockPosition.getY() + 0.5, blockPosition.getZ() + 0.5);
-    blockMidpoint = blockMidpoint.add(direction.directionVecAsVector().clone().multiply(0.5));
+    blockMidpoint = blockMidpoint.add(direction.normalVec().clone().multiply(0.5));
 
     Position[] edgeMidpoints = new Position[4];
 

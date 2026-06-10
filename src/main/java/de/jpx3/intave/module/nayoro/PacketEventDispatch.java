@@ -21,9 +21,9 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import static de.jpx3.intave.module.linker.packet.ListenerPriority.LOWEST;
+import static de.jpx3.intave.module.linker.packet.PacketId.Client.*;
 import static de.jpx3.intave.module.linker.packet.PacketId.Client.POSITION;
 import static de.jpx3.intave.module.linker.packet.PacketId.Client.VEHICLE_MOVE;
-import static de.jpx3.intave.module.linker.packet.PacketId.Client.*;
 import static de.jpx3.intave.module.linker.packet.PacketId.Server.*;
 import static de.jpx3.intave.module.nayoro.event.WindowActionEvent.Action.CLOSE;
 import static de.jpx3.intave.module.nayoro.event.WindowActionEvent.Action.INFER_OPEN;
@@ -50,22 +50,22 @@ public final class PacketEventDispatch implements PacketEventSubscriber {
   @PacketSubscription(
     priority = LOWEST,
     packetsIn = {
-      USE_ENTITY
+      ATTACK_ENTITY, USE_ENTITY
     }
   )
   public void onUse(PacketEvent event) {
     Player player = event.getPlayer();
     User user = UserRepository.userOf(player);
     PacketContainer packet = event.getPacket();
-    EntityUseReader packetReader = PacketReaders.readerOf(packet);
-    EnumWrappers.EntityUseAction useAction = packetReader.useAction();
+    EntityUseReader reader = PacketReaders.readerOf(packet);
+    EnumWrappers.EntityUseAction useAction = reader.useAction();
     if (useAction == EnumWrappers.EntityUseAction.ATTACK) {
       int attackerId = player.getEntityId();
-      int targetId = packetReader.entityId();
+      int targetId = reader.entityId();
       AttackEvent attackEvent = AttackEvent.create(attackerId, targetId);
       reverseSink.accept(user, attackEvent::accept);
     }
-    packetReader.release();
+    reader.release();
   }
 
   @PacketSubscription(

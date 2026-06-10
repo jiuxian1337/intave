@@ -474,7 +474,7 @@ public final class IntavePlugin extends JavaPlugin {
   }
 
   public void displayVersionInformation() {
-    IntaveVersion version = versions.versionInformation(version());
+    IntaveVersion version = versions.versionInformation(fullVersion());
     if (version == null) {
       logger().info(ChatColor.YELLOW + "This version of Intave is not listed in the official version index");
     } else {
@@ -742,8 +742,26 @@ public final class IntavePlugin extends JavaPlugin {
     return versions;
   }
 
-  public static String version() {
+  public static String fullVersion() {
     return version;
+  }
+
+  public static String versionTag() {
+    String version = fullVersion();
+    int lastPlusIndex = version.lastIndexOf('+');
+    if (lastPlusIndex != -1) {
+      return version.substring(0, lastPlusIndex);
+    }
+    return version;
+  }
+
+  public static String commitHash() {
+    String version = fullVersion();
+    int lastPlusIndex = version.lastIndexOf('+');
+    if (lastPlusIndex != -1 && lastPlusIndex < version.length() - 1) {
+      return version.substring(lastPlusIndex + 1);
+    }
+    return "unknown";
   }
 
   public static UUID gameId() {

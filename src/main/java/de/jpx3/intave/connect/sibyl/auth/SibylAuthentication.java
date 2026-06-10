@@ -29,7 +29,6 @@ import de.jpx3.intave.user.User;
 import de.jpx3.intave.user.UserRepository;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import net.minecraft.server.packs.repository.Pack;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerQuitEvent;
 
@@ -141,7 +140,7 @@ public final class SibylAuthentication implements BukkitEventSubscriber {
           URLConnection uc = url.openConnection();
           uc.setUseCaches(false);
           uc.setDefaultUseCaches(false);
-          uc.addRequestProperty("User-Agent", "Intave/" + IntavePlugin.version());
+          uc.addRequestProperty("User-Agent", "Intave/" + IntavePlugin.fullVersion());
           uc.addRequestProperty("Cache-Control", "no-cache, no-store, must-revalidate");
           uc.addRequestProperty("Pragma", "no-cache");
           uc.addRequestProperty("authkey", authKey);

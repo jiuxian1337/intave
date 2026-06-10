@@ -315,7 +315,7 @@ public final class InteractionEmulator implements EventProcessor {
         movement.positionY + movement.eyeHeight(),
         movement.positionZ
       );
-      Position endOfRaytrace = Position.empty();
+      Position endOfRaytrace = Position.mutableEmpty();
       if (interaction.hasRaytraceResult()) {
         MovingObjectPosition movingObjectPosition = interaction.raytraceResult();
         endOfRaytrace = movingObjectPosition.hitVec.toPosition();
@@ -507,7 +507,7 @@ public final class InteractionEmulator implements EventProcessor {
     Block clickedBlock = clickedBlockLocation == null ? null : VolatileBlockAccess.blockAccess(clickedBlockLocation);
     Material itemTypeInHand = interaction.itemTypeInHand();
     Location placementLocation = clickedBlock == null ? null :
-      clickedBlockLocation.clone().add(Direction.getFront(interaction.targetDirectionIndex()).directionVecAsVector());
+      clickedBlockLocation.clone().add(Direction.getFront(interaction.targetDirectionIndex()).normalVec());
     emulateItemInteraction(player, itemTypeInHand);
     if (clickedBlock != null) {
       emulateInteractWithHandItem(player, clickedBlock, interaction.type(), placementLocation, itemTypeInHand);

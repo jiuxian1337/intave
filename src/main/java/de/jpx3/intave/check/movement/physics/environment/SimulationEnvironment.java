@@ -1,5 +1,7 @@
-package de.jpx3.intave.check.movement.physics;
+package de.jpx3.intave.check.movement.physics.environment;
 
+import de.jpx3.intave.check.movement.physics.Pose;
+import de.jpx3.intave.player.collider.complex.ColliderResult;
 import de.jpx3.intave.share.BoundingBox;
 import de.jpx3.intave.share.Motion;
 import de.jpx3.intave.share.Position;
@@ -62,7 +64,7 @@ public interface SimulationEnvironment {
   double motionY();
   double motionZ();
 
-  default Motion baseMotion() {
+  default Motion mutableBaseMotionCopy() {
     return new Motion(baseMotionX(), baseMotionY(), baseMotionZ());
   }
   double baseMotionX();
@@ -77,8 +79,6 @@ public interface SimulationEnvironment {
   void setBaseMotionX(double baseMotionX);
   void setBaseMotionY(double baseMotionY);
   void setBaseMotionZ(double baseMotionZ);
-
-  Motion motionProcessorContext();
 
   boolean motionXReset();
   boolean motionZReset();
@@ -98,6 +98,8 @@ public interface SimulationEnvironment {
   double resetMotion();
   double jumpMotion();
   double gravity();
+
+  float blockSpeedFactor();
 
   // states
   boolean isSneaking();
@@ -134,6 +136,9 @@ public interface SimulationEnvironment {
   void setPushedByEntity(boolean pushedByEntity);
   boolean pushedByEntity();
 
+  void setBeforeMoveColliderResult(ColliderResult result);
+  ColliderResult beforeMoveColliderResult();
+
   int afterRespawnTicks();
   int pastAnyVelocity();
   int pastExternalVelocity();
@@ -152,10 +157,14 @@ public interface SimulationEnvironment {
   void increaseVehicleTicks();
   void resetPushedByWaterFlowTicks();
 
+  @Deprecated
+  void updateEyesInWater();
   void aquaticUpdateLavaReset();
 
   float height();
   float width();
   double heightRounded();
   double widthRounded();
+
+  SimulationEnvironment unmodifiable();
 }

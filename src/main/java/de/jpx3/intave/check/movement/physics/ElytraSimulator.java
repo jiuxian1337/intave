@@ -1,5 +1,7 @@
 package de.jpx3.intave.check.movement.physics;
 
+import de.jpx3.intave.check.movement.physics.environment.SimulationEnvironment;
+import de.jpx3.intave.diagnostic.timings.Timings;
 import de.jpx3.intave.player.collider.Colliders;
 import de.jpx3.intave.player.collider.complex.ColliderResult;
 import de.jpx3.intave.player.collider.simple.SimpleColliderResult;
@@ -14,11 +16,12 @@ import static de.jpx3.intave.share.ClientMath.sin;
 
 final class ElytraSimulator extends BaseSimulator {
   @Override
-  public Simulation simulate(
+  public Simulation simulateTick(
     User user, Motion motion,
     SimulationEnvironment environment,
     MovementConfiguration configuration
   ) {
+    Timings.CHECK_PHYSICS_SIMULATOR_ELYTRA.start();
     float rotationPitch = environment.rotationPitch();
     Vector lookVector = environment.lookVector();
 
@@ -66,6 +69,7 @@ final class ElytraSimulator extends BaseSimulator {
       positionX, positionY, positionZ
     );
     notePossibleFlyingPacket(user, collisionResult);
+    Timings.CHECK_PHYSICS_SIMULATOR_ELYTRA.stop();
     return Simulation.of(user, configuration, collisionResult);
   }
 
@@ -107,7 +111,7 @@ final class ElytraSimulator extends BaseSimulator {
       boolean jumpLessThanExpected = colliderResult.motionY() < jumpUpwardsMotion;
       boolean jump = onGround && Math.abs(((colliderResult.motionY()) + jumpUpwardsMotion) - environment.motionY()) < 1e-5 && jumpLessThanExpected;
 
-      if (!flyingPacket(diffX, diffY, diffZ) && !jump) {
+      if (!flyingPacket(user, diffX, diffY, diffZ) && !jump) {
         break;
       }
 
@@ -155,11 +159,6 @@ final class ElytraSimulator extends BaseSimulator {
     if (interpolations != 0) {
       movementData.resetFlyingPacketAccurate();
     }
-  }
-
-  @Override
-  public String debugName() {
-    return "ELYTRA";
   }
 
   @Override

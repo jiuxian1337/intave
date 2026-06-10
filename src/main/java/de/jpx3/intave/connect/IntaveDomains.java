@@ -21,6 +21,32 @@ public final class IntaveDomains {
     }
   }
 
+  private static long ping(String domain) {
+    String url = "https://" + domain + "/connection-test.php";
+    try {
+      long start = System.currentTimeMillis();
+      URLConnection connection = new URL(url).openConnection();
+      connection.setConnectTimeout(1600);
+      connection.setReadTimeout(1600);
+      connection.setRequestProperty("User-Agent", "Intave/" + IntavePlugin.fullVersion());
+      connection.connect();
+      Scanner scanner = new Scanner(connection.getInputStream());
+      String response = scanner.nextLine();
+      scanner.close();
+      long end = System.currentTimeMillis();
+      if (response.contains("success")) {
+        return end - start;
+      } else {
+        return Long.MAX_VALUE;
+      }
+    } catch (Exception e) {
+      if (IntaveControl.DEBUG) {
+        System.out.println("Could not connect to " + domain + " (" + url + "): " + e.getMessage());
+      }
+      return Long.MAX_VALUE;
+    }
+  }
+
   public static String primaryServiceDomain() {
     return DOMAIN_CACHE.serviceDomain();
   }

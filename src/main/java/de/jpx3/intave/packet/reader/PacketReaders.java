@@ -9,11 +9,11 @@ import java.util.*;
 import java.util.function.Supplier;
 
 import static de.jpx3.intave.module.linker.packet.PacketId.Client;
-import static de.jpx3.intave.module.linker.packet.PacketId.Client.CLOSE_WINDOW;
 import static de.jpx3.intave.module.linker.packet.PacketId.Client.*;
+import static de.jpx3.intave.module.linker.packet.PacketId.Client.CLOSE_WINDOW;
 import static de.jpx3.intave.module.linker.packet.PacketId.Server;
-import static de.jpx3.intave.module.linker.packet.PacketId.Server.POSITION;
 import static de.jpx3.intave.module.linker.packet.PacketId.Server.*;
+import static de.jpx3.intave.module.linker.packet.PacketId.Server.POSITION;
 
 public final class PacketReaders {
   private static final Map<PacketType, ThreadLocal<? extends PacketReader>> readerLocals = new HashMap<>();
@@ -67,6 +67,7 @@ public final class PacketReaders {
     setup(UPDATE_ENTITY_NBT, EntityReader::new);
     setup(USE_BED, EntityReader::new);
 
+    setup(ATTACK_ENTITY, EntityUseReader::new);
     setup(ABILITIES_IN, AbilityInReader::new);
     setup(BLOCK_DIG, BlockPositionReader::new);
     setup(BLOCK_PLACE, BlockInteractionReader::new);

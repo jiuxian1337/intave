@@ -6,10 +6,7 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
 import org.bukkit.util.Vector;
 
-import java.util.Iterator;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 
 import static de.jpx3.intave.share.Direction.Axis.*;
 import static de.jpx3.intave.share.Direction.AxisDirection.NEGATIVE;
@@ -69,6 +66,13 @@ public enum Direction {
     this.directionVec = directionVecIn;
     this.directionVecAsMotion = directionVecIn.toMotion();
     this.directionVecAsVector = directionVecIn.convertToBukkitVec();
+  }
+
+  private static final List<Direction.Axis> YXZ_AXIS_ORDER = Collections.unmodifiableList(Arrays.asList(Y_AXIS, X_AXIS, Z_AXIS));
+  private static final List<Direction.Axis> YZX_AXIS_ORDER = Collections.unmodifiableList(Arrays.asList(Y_AXIS, Z_AXIS, X_AXIS));
+
+  public static List<Axis> axisStepOrder(Motion motion) {
+    return Math.abs(motion.motionX) < Math.abs(motion.motionZ) ? YZX_AXIS_ORDER : YXZ_AXIS_ORDER;
   }
 
   public static Direction getFacingFromAxisDirection(Direction.Axis axisIn, Direction.AxisDirection axisDirectionIn) {
@@ -331,11 +335,11 @@ public enum Direction {
     return this.directionVec;
   }
 
-  public Motion directionVecAsMotion() {
+  public Motion normalMotion() {
     return this.directionVecAsMotion;
   }
 
-  public Vector directionVecAsVector() {
+  public Vector normalVec() {
     return this.directionVecAsVector;
   }
 
@@ -363,6 +367,16 @@ public enum Direction {
       public <T> T select(T x, T y, T z) {
         return x;
       }
+
+      @Override
+      public Direction positive() {
+        return Direction.EAST;
+      }
+
+      @Override
+      public Direction negative() {
+        return Direction.WEST;
+      }
     },
     Y_AXIS("y", Direction.Plane.VERTICAL) {
       public int select(int x, int y, int z) {
@@ -377,6 +391,16 @@ public enum Direction {
       public <T> T select(T x, T y, T z) {
         return y;
       }
+
+      @Override
+      public Direction positive() {
+        return Direction.UP;
+      }
+
+      @Override
+      public Direction negative() {
+        return Direction.DOWN;
+      }
     },
     Z_AXIS("z", Direction.Plane.HORIZONTAL) {
       public int select(int x, int y, int z) {
@@ -390,6 +414,16 @@ public enum Direction {
       @Override
       public <T> T select(T x, T y, T z) {
         return z;
+      }
+
+      @Override
+      public Direction positive() {
+        return Direction.SOUTH;
+      }
+
+      @Override
+      public Direction negative() {
+        return Direction.NORTH;
       }
     };
 
@@ -439,6 +473,10 @@ public enum Direction {
     public abstract double select(double x, double y, double z);
 
     public abstract <T> T select(T x, T y, T z);
+
+    public abstract Direction positive();
+
+    public abstract Direction negative();
 
     static {
       for (Direction.Axis value : values()) {

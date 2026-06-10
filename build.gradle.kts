@@ -10,9 +10,15 @@ plugins {
   id("xyz.jpenilla.run-paper") version "3.0.2"
 }
 
+val gitCommitHash by lazy {
+  providers.exec {
+    commandLine("git", "rev-parse", "--short", "HEAD")
+  }.standardOutput.asText.get().trim()
+}
+
 val simpleName = "Intave"
 group = "de.jpx3"
-version = "14.9.3"
+version = "14.9.3+$gitCommitHash"
 description = "Automated cheat detection and prevention"
 
 /*
@@ -223,11 +229,9 @@ fun dumpBuildConfig() {
   buildConfigFields.forEach { println("  ${it.name} = ${it.value.get()}") }
 }
 
-val serverVersions = mapOf(
+val paperRunConfigs = mapOf(
   Pair("1.8.8", 17),
   Pair("1.9.4", 8),
-//  Pair("1.10.2", 8),
-//  Pair("1.11.2", 8),
   Pair("1.12.2", 17),
   Pair("1.14.4", 11),
   Pair("1.15.2", 11),
@@ -239,8 +243,6 @@ val serverVersions = mapOf(
   Pair("1.20.1", 17),
   Pair("1.20.2", 17),
   Pair("1.20.4", 17),
-//  Pair("1.20.6", 21),
-//  Pair("1.21", 21),
   Pair("1.21.1", 21),
   Pair("1.21.3", 21),
   Pair("1.21.4", 21),
@@ -249,14 +251,21 @@ val serverVersions = mapOf(
   Pair("26.1.2", 25),
 )
 
+val foliaRunConfigs = mapOf(
+  Pair("26.1.2", 25)
+)
+
 run {
-  serverVersions.forEach { server, java ->
-    registerTestTask(server, java)
-    registerServerTask(server, java)
+  paperRunConfigs.forEach { server, java ->
+    registerPaperTestTask(server, java)
+    registerPaperRunTask(server, java)
+  }
+  foliaRunConfigs.forEach { server, java ->
+    registerFoliaRunTask(server, java)
   }
 }
 
-fun registerTestTask(serverVersion: String, javaVersion: Int) {
+fun registerPaperTestTask(serverVersion: String, javaVersion: Int) {
   tasks.register<RunServer>("test_${serverVersion}") {
     group = simpleName
     dependsOn("build")
@@ -290,11 +299,11 @@ run {
 fun registerTestAllTask() {
   tasks.register("test_all") {
     group = simpleName
-    dependsOn(serverVersions.keys.map { "test_$it" })
+    dependsOn(paperRunConfigs.keys.map { "test_$it" })
   }
 }
 
-fun registerServerTask(serverVersion: String, javaVersion: Int) {
+fun registerPaperRunTask(serverVersion: String, javaVersion: Int) {
   tasks.register<RunServer>("run_${serverVersion}") {
     group = simpleName
     dependsOn("build")
@@ -320,6 +329,24 @@ fun registerServerTask(serverVersion: String, javaVersion: Int) {
       }
     )
   }
+}
+
+fun registerFoliaRunTask(serverVersion: String, javaVersion: Int) {
+  runPaper.folia.registerTask({
+//    name = "run_folia_$serverVersion"
+    group = simpleName
+    dependsOn("build")
+    pluginJars.from("build/libs/$simpleName.jar")
+    minecraftVersion(serverVersion)
+    runDirectory(File("runs/folia_${serverVersion}-j$javaVersion"))
+    jvmArgs("-Dcom.mojang.eula.agree=true")
+    args("-o", "false")
+    javaLauncher.set(
+      project.javaToolchains.launcherFor {
+        languageVersion.set(JavaLanguageVersion.of(javaVersion))
+      }
+    )
+  });
 }
 
 /*

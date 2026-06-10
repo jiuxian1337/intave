@@ -12,13 +12,15 @@ import java.util.*;
 
 public final class ProtocolMetadata {
   public static int VER_26_1_1 = 775; // 26.1.1
+  public static int VER_1_21_5 = 770; // 1.21.5
   public static int VER_1_21_3 = 768; // 1.21.3
   public static int VER_1_21 = 767; // 1.21
   // final has been removed to disguise modified integer VERSION_DETAILS
   public static int VER_1_20_2 = 764; // 1.21.2
   public static int VER_1_20 = 763; // 1.17
-  public static int VER_1_19_4 = 756; // 1.19.4
-  public static int VER_1_19_2 = 754; // 1.19.2
+  public static int VER_1_19_4 = 762; // 1.19.4
+  public static int VER_1_19_2 = 760; // 1.19.2
+  public static int VER_1_18_2 = 758; // 1.18.2
   public static int VER_1_17 = 755; // 1.17
   public static int VER_1_16 = 735; // 1.16
   public static int VER_1_15 = 573; // 1.15
@@ -218,6 +220,22 @@ public final class ProtocolMetadata {
     return protocolVersion >= VER_1_19_4;
   }
 
+  public double flyingPacketUncertaintyRadius() {
+    if (protocolVersion >= VER_1_18_2) {
+      return 0.0002 * 0.0002;
+    } else {
+      return 0.03;
+    }
+  }
+
+	public boolean newMotionClampLogic() {
+		return protocolVersion >= VER_1_21_5;
+	}
+
+  public boolean newBlockEntityIntersectionLogic() {
+    return protocolVersion >= VER_1_21_5;
+  }
+
   public boolean oppositeBlockVectorBehavior() {
     return protocolVersion >= VER_1_14;
   }
@@ -227,7 +245,7 @@ public final class ProtocolMetadata {
   }
 
   public boolean sneakAsVehicleSteer() {
-    return protocolVersion >= VER_26_1_1 && MinecraftVersions.VER26_1_1.atOrAbove();
+    return MinecraftVersions.VER1_21.atOrAbove();
   }
 
   public boolean sendsClientTickEnd() {

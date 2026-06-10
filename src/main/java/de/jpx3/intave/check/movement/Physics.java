@@ -15,26 +15,26 @@ import de.jpx3.intave.annotate.DispatchTarget;
 import de.jpx3.intave.block.access.VolatileBlockAccess;
 import de.jpx3.intave.block.cache.BlockCache;
 import de.jpx3.intave.block.collision.Collision;
+import de.jpx3.intave.block.collision.modifier.PowderSnowCollisionModifier;
 import de.jpx3.intave.block.fluid.Fluid;
 import de.jpx3.intave.block.fluid.Fluids;
 import de.jpx3.intave.block.shape.BlockShape;
 import de.jpx3.intave.block.type.BlockTypeAccess;
+import de.jpx3.intave.block.type.MaterialSearch;
 import de.jpx3.intave.block.variant.BlockVariantNativeAccess;
 import de.jpx3.intave.check.Check;
 import de.jpx3.intave.check.CheckConfiguration.CheckSettings;
 import de.jpx3.intave.check.CheckStatistics;
 import de.jpx3.intave.check.CheckViolationLevelDecrementer;
 import de.jpx3.intave.check.movement.physics.*;
-import de.jpx3.intave.check.movement.physics.eval.EvaluationTag;
+import de.jpx3.intave.check.movement.physics.evaluation.EvaluationTag;
 import de.jpx3.intave.connect.sibyl.SibylBroadcast;
-import de.jpx3.intave.connect.upload.RealtimedataUplink;
 import de.jpx3.intave.diagnostic.message.DebugBroadcast;
 import de.jpx3.intave.diagnostic.message.MessageSeverity;
 import de.jpx3.intave.diagnostic.timings.Timings;
 import de.jpx3.intave.executor.Synchronizer;
 import de.jpx3.intave.math.MathHelper;
 import de.jpx3.intave.module.Modules;
-import de.jpx3.intave.module.feedback.Superposition;
 import de.jpx3.intave.module.linker.bukkit.BukkitEventSubscription;
 import de.jpx3.intave.module.mitigate.AttackNerfStrategy;
 import de.jpx3.intave.module.tracker.entity.Entity;
@@ -49,6 +49,7 @@ import de.jpx3.intave.player.collider.simple.SimpleColliderResult;
 import de.jpx3.intave.share.BoundingBox;
 import de.jpx3.intave.share.Motion;
 import de.jpx3.intave.share.Position;
+import de.jpx3.intave.user.MessageChannel;
 import de.jpx3.intave.user.User;
 import de.jpx3.intave.user.UserRepository;
 import de.jpx3.intave.user.meta.*;
@@ -68,7 +69,6 @@ import java.util.stream.Collectors;
 import static de.jpx3.intave.diagnostic.message.MessageCategory.SIMFLT;
 import static de.jpx3.intave.diagnostic.message.MessageCategory.SIMFUL;
 import static de.jpx3.intave.math.MathHelper.*;
-import static de.jpx3.intave.module.violation.Violation.ViolationFlags.DISPLAY_IN_ALL_VERBOSE_MODES;
 import static de.jpx3.intave.share.ClientMath.floor;
 import static org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.ENDER_PEARL;
 
@@ -81,15 +81,10 @@ public final class Physics extends Check {
   private static final long BURST_WINDOW = 8000;
   private static final long BURST_CONGESTION = 2;
 
-  public static boolean USE_SUPERPOSITIONS = true;
-
   private final IntavePlugin plugin;
   private final CheckViolationLevelDecrementer decrementer;
   private final SimulationProcessor simulationProcessor;
   private final SimulationEvaluator simulationEvaluator;
-  private final FallDamageApplier fallDamageApplier;
-  private final boolean useSuperpositions;
-  private final boolean detectNoSlowdown;
   private final boolean highToleranceMode;
   private final boolean resetItemUsage;
   private final boolean closeInventory;
@@ -127,21 +122,10 @@ public final class Physics extends Check {
       this.refreshNearbyBlocks = settings.boolBy("refresh-nearby-blocks-on-detection", true);
     }
 
-    this.useSuperpositions = !settings.boolBy("no-speculative-velocity", true);
-    this.detectNoSlowdown = settings.boolBy("enforce-item-slowdown", true);
-    Physics.USE_SUPERPOSITIONS = useSuperpositions;
-
-    this.simulationProcessor = new PredictiveSimulationProcessor(resetItemUsage, useSuperpositions, detectNoSlowdown);
+    boolean detectNoSlowdown = settings.boolBy("enforce-item-slowdown", true);
+    this.simulationProcessor = new PredictiveSimulationProcessor(resetItemUsage, detectNoSlowdown);
     this.simulationEvaluator = new SimulationEvaluator();
     setDefaultMitigationStrategy(MitigationStrategy.CAREFUL);
-    this.fallDamageApplier = new FallDamageApplier();
-    linkCheckToPoseSimulators();
-  }
-
-  private void linkCheckToPoseSimulators() {
-    for (Simulator simulator : Simulators.simulators()) {
-      simulator.enterLinkage(this);
-    }
   }
 
   @DispatchTarget
@@ -152,11 +136,8 @@ public final class Physics extends Check {
     Simulator simulator = selectSimulator(user);
     movementData.setSimulator(simulator);
     movementData.stepHeight = simulator.stepHeight();
-    if (clientData.waterUpdate() && movementData.sneaking && movementData.inWater) {
-      handleSneakInWater(user);
-    }
-    updateAquatics(user);
-    simulateMotionClamp(user);
+    simulator.simulatePreTick(user, null, movementData);
+
     Timings.CHECK_PHYSICS_PROC_TOT.start();
     predictFlyingPacketBeforeVelocity(user);
     // simulation
@@ -183,6 +164,10 @@ public final class Physics extends Check {
     if (collider.edgeSneak()) {
       movementData.pastEdgeSneak = 0;
     }
+    if (clientData.newBlockEntityIntersectionLogic()) {
+      movementData.setBeforeMoveColliderResult(collider);
+    }
+
     Timings.CHECK_PHYSICS_PROC_TOT.stop();
     Timings.CHECK_PHYSICS_EVAL.start();
     // evaluation
@@ -200,20 +185,6 @@ public final class Physics extends Check {
     movementData.lastKeyForward = movementData.keyForward;
     if (movementData.pastRiptideSpin++ > 40) {
       movementData.highestLocalRiptideLevel = 0;
-    }
-  }
-
-  private void simulateMotionClamp(User user) {
-    MovementMetadata movementData = user.meta().movement();
-    double resetMotion = movementData.resetMotion();
-    if (Math.abs(movementData.baseMotionX) < resetMotion) {
-      movementData.baseMotionX = 0.0;
-    }
-    if (Math.abs(movementData.baseMotionY) < resetMotion) {
-      movementData.baseMotionY = 0.0;
-    }
-    if (Math.abs(movementData.baseMotionZ) < resetMotion) {
-      movementData.baseMotionZ = 0.0;
     }
   }
 
@@ -235,9 +206,14 @@ public final class Physics extends Check {
     return Simulators.PLAYER;
   }
 
+  private static final Material POWDER_SNOW = MaterialSearch.materialThatIsNamed("POWDER_SNOW");
+
   @DispatchTarget
   public void endMovement(User user, boolean hasMovement) {
+    Player player = user.player();
     MovementMetadata movementData = user.meta().movement();
+    ViolationMetadata violationMetadata = user.meta().violationLevel();
+
     double motionX = movementData.endMotionXOverride ? movementData.endMotionXOverrideValue : movementData.motionX();
     double motionY = movementData.endMotionYOverride ? movementData.endMotionYOverrideValue : movementData.motionY();
     double motionZ = movementData.endMotionZOverride ? movementData.endMotionZOverrideValue : movementData.motionZ();
@@ -247,19 +223,48 @@ public final class Physics extends Check {
         if (movementData.physicsJumped && movementData.lastVelocityApplicableForJumpDenial()) {
           movementData.physicsJumpedOverrideVL++;
           if (movementData.applyJumpCM()) {
-            SibylBroadcast.broadcast("[CM] " + user.player().getName() + " jumped with velocity");
+            SibylBroadcast.broadcast("[CM] " + player.getName() + " jumped with velocity");
             user.nerfOnce(AttackNerfStrategy.DMG_HIGH, "92");
           }
         } else if (movementData.physicsJumpedOverrideVL > 0) {
           movementData.physicsJumpedOverrideVL = Math.max(0, movementData.physicsJumpedOverrideVL - 0.5);
         }
       }
-      simulator.prepareNextTick(
+      Motion motion = new Motion(motionX, motionY, motionZ);
+      simulator.simulateAfterTick(
         user,
         movementData,
-        movementData.positionX, movementData.positionY, movementData.positionZ,
-        motionX, motionY, motionZ
+        movementData.position(),
+        motion
       );
+
+      if (!violationMetadata.isInActiveTeleportBundle) {
+        if (violationMetadata.doNotVerifyBaseMotion) {
+          violationMetadata.doNotVerifyBaseMotion = false;
+        } else {
+          PacketLogging logging = Modules.tracker().packetLogging();
+          logging.logSystemMessage(user, () -> "MOTION LOGIC: Base motion override: " + motion.motionX + " " + motion.motionY + " " + motion.motionZ);
+          movementData.setBaseMotion(motion);
+        }
+      }
+
+      movementData.increaseFlyingPacketTicks();
+      movementData.increaseEntityUseTicks();
+      movementData.increasePlayerAttackTicks();
+      movementData.increasePushedByWaterFlowTicks();
+
+      if (movementData.onGround()) {
+        movementData.resetPhysicsPacketRelinkFlyVL();
+      }
+
+      Material type = VolatileBlockAccess.typeAccess(user, player.getWorld(), movementData.position());
+      boolean climbingInPowderSnow = POWDER_SNOW != null && type == POWDER_SNOW && PowderSnowCollisionModifier.canWalkOnPowderSnow(player);
+      if (climbingInPowderSnow) {
+        movementData.resetPowderSnowTicks();
+      } else {
+        movementData.increasePowderSnowTicks();
+      }
+      movementData.increaseEdgeSneakTickGrants();
     }
     movementData.endMotionXOverride = false;
     movementData.endMotionYOverride = false;
@@ -319,42 +324,6 @@ public final class Physics extends Check {
           movementData.setPastFlyingPacketAccurate(0);
         }
       }
-    }
-  }
-
-  public void updateAquatics(User user) {
-    MovementMetadata movementData = user.meta().movement();
-    updateInWater(user);
-    updateInLava(user);
-    movementData.updateEyesInWater();
-  }
-
-  private void handleSneakInWater(User user) {
-    MovementMetadata movementData = user.meta().movement();
-    movementData.baseMotionY -= 0.04F;
-  }
-
-  private void updateInWater(User user) {
-    MetadataBundle meta = user.meta();
-    ProtocolMetadata clientData = meta.protocol();
-    MovementMetadata movementData = meta.movement();
-    BoundingBox boundingBox = movementData.boundingBox();
-    if (!clientData.waterUpdate()) {
-      boundingBox = boundingBox.grow(0.0D, -0.4000000059604645D, 0.0D);
-    }
-    boundingBox = boundingBox.shrink(0.001D);
-    movementData.inWater = user.waterflow().applyFlowTo(user, boundingBox);
-    if (movementData.inWater) {
-      movementData.inWaterSinceFallDamagePostCheck = true;
-      movementData.pastWaterMovement = 0;
-      movementData.artificialFallDistance = 0;
-    }
-  }
-
-  private void updateInLava(User user) {
-    MovementMetadata movementData = user.meta().movement();
-    if (movementData.inLava()) {
-      movementData.pastLavaMovement = 0;
     }
   }
 
@@ -528,9 +497,6 @@ public final class Physics extends Check {
     }
     if (distance > 0.001) {
       movementData.suspiciousMovement = true;
-      for (Superposition<?> superposition : movementData.superpositions()) {
-        superposition.collapseVariation(0);
-      }
       Simulation otherSimulation;
       if (IntaveControl.SETBACK_WITH_PRESSED_KEYS) {
         otherSimulation = simulationProcessor.simulateWithKeyPress(user, selectSimulator(user), movementData.keyForward, movementData.keyStrafe, false);
@@ -612,7 +578,7 @@ public final class Physics extends Check {
         boolean altered = BlockTypeAccess.hasTranslation(user, BlockTypeAccess.typeAccess(block));
 
         String colliderName;
-        if (!Collision.blockInsideBorder(player.getWorld(), blockPositionX, blockPositionZ)) {
+        if (!Collision.blockInsideBorder(user, player.getWorld(), blockPositionX, blockPositionZ)) {
           colliderName = "world border";
         } else {
           String prefix = (currentlyInOverride ? "emulated " : "") + (altered ? "altered " : "");
@@ -874,7 +840,7 @@ public final class Physics extends Check {
     boolean fullDebugRequested = DebugBroadcast.anyoneListeningTo(SIMFUL, player);
     boolean anyDebugRequested = !IntaveControl.DEBUG_MOVEMENT && (faultDebugRequested || fullDebugRequested);
 
-    if (IntaveControl.DEBUG_MOVEMENT || anyDebugRequested) {
+    if (IntaveControl.DEBUG_MOVEMENT || anyDebugRequested || user.receives(MessageChannel.DEBUG_MOVEMENT) ) {
       ChatColor chatColor = ChatColor.GRAY;
       String symbol = "";
 
@@ -933,6 +899,9 @@ public final class Physics extends Check {
 //      debug += " x:" + formatDouble(movementData.motionX(), 4) + " z:" + formatDouble(movementData.motionZ(), 4);
       if (!simulation.details().isEmpty()) {
         debug += ChatColor.ITALIC + " " + simulation.details() + chatColor;
+      }
+      if (simulation.resultsInFlyingPacket(movementData, 0.03)) {
+        debug += " nwbf";
       }
       if (movementData.fireworkRocketsTicks < 100) {
         debug += ChatColor.ITALIC + " frt:" + movementData.fireworkRocketsTicks + " frp: " + movementData.fireworkRocketsPower + chatColor;
@@ -1079,15 +1048,7 @@ public final class Physics extends Check {
       String displayViolationIncrease = formatDouble(violationLevelIncrease, 1);
 
       if (violationLevelIncrease > 0) {
-        double hvRatio = horizontalViolationIncrease / violationLevelIncrease;
-        String extraSymbols = "";
-        if (hvRatio > 0.8) {
-          extraSymbols = "H" + displayHorizontalVL;
-        } else if (hvRatio < 0.2) {
-          extraSymbols = "V" + displayVerticalVL;
-        }
-        extraSymbols += "B" + displayViolationIncrease;
-        debug += " g:" + displayPhysicsVL + "+" + extraSymbols;
+        debug += " g:" + displayPhysicsVL + "+" + displayViolationIncrease + "(H" + displayHorizontalVL + "V" + displayVerticalVL + ")";
       } else if (violationLevelData.physicsVL > 25) {
         debug += " g:" + ChatColor.YELLOW + displayPhysicsVL + chatColor;
       } else if (violationLevelData.physicsVL > 5) {
@@ -1171,48 +1132,6 @@ public final class Physics extends Check {
       key += " ";
     }
     return key;
-  }
-
-  public void applyFallDamageUpdate(User user) {
-    if (!user.hasPlayer()) {
-      return;
-    }
-    MovementMetadata movementData = user.meta().movement();
-    if (movementData.artificialFallDistance > 3.0F) {
-      float fallDistance = movementData.artificialFallDistance;
-      movementData.seenFallDamage = 0;
-//      movementData.inWaterSinceFallDamagePostCheck = false;
-//      Synchronizer.synchronizeDelayed(() -> user.tickFeedback(() -> {
-//        Synchronizer.synchronize(() -> postCheckFalldamage(user, movementData, fallDistance));
-//      }), 2);
-      movementData.artificialFallDistance = 0F;
-    }
-  }
-
-  private void postCheckFalldamage(User user, MovementMetadata movementData, float fallDistance) {
-    Player player = user.player();
-    if (!movementData.inWaterSinceFallDamagePostCheck) {
-      float seenDamage = movementData.seenFallDamage;
-      float estimatedDamage = fallDamageApplier.distanceToDamage(player, fallDistance);
-//      player.sendMessage("Fall damage: " + seenDamage + " / " + estimatedDamage + " (" + fallDistance + ")");
-      if (seenDamage < estimatedDamage - 1.2F) {
-        float missingDistance = fallDamageApplier.remainingDistance(player, seenDamage, estimatedDamage);
-//        player.sendMessage("Missing distance: " + missingDistance);
-        if (missingDistance > 0.0F) {
-          Violation violation = Violation.builderFor(Physics.class)
-            .forPlayer(player)
-            .withMessage("did not take sufficient fall damage")
-            .withDetails("missing " + formatDouble(missingDistance, 2) + " blocks")
-            .withVL(0)
-            .appendFlags(DISPLAY_IN_ALL_VERBOSE_MODES)
-            .build();
-          Modules.violationProcessor().processViolation(violation);
-          movementData.dealCustomFallDamage = true;
-          player.damage(estimatedDamage - seenDamage);
-          movementData.dealCustomFallDamage = false;
-        }
-      }
-    }
   }
 
   @BukkitEventSubscription

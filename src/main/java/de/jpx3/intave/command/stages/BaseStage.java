@@ -1,6 +1,5 @@
 package de.jpx3.intave.command.stages;
 
-import de.jpx3.intave.IntaveControl;
 import de.jpx3.intave.IntavePlugin;
 import de.jpx3.intave.access.player.trust.TrustFactor;
 import de.jpx3.intave.command.CommandStage;
@@ -12,11 +11,9 @@ import de.jpx3.intave.module.actionbar.ActionBarDisplayer;
 import de.jpx3.intave.module.actionbar.DisplayType;
 import de.jpx3.intave.module.violation.ViolationVerboseMode;
 import de.jpx3.intave.player.ProfileLookup;
-import de.jpx3.intave.security.LicenseAccess;
 import de.jpx3.intave.user.MessageChannel;
 import de.jpx3.intave.user.User;
 import de.jpx3.intave.user.UserRepository;
-import de.jpx3.intave.user.meta.ProtocolMetadata;
 import de.jpx3.intave.user.permission.BukkitPermissionCheck;
 import de.jpx3.intave.user.storage.LongTermViolationStorage;
 import de.jpx3.intave.user.storage.PlaytimeStorage;
@@ -200,6 +197,11 @@ public final class BaseStage extends CommandStage {
     BLOCK_CACHE(MessageChannel.DEBUG_BLOCK_CACHE),
     POSITION(MessageChannel.DEBUG_POSITION),
     PACKET_HOLD(MessageChannel.DEBUG_PACKET_HOLD),
+    COLLISIONS(MessageChannel.DEBUG_COLLISIONS),
+    HITBOXES(MessageChannel.DEBUG_HITBOXES),
+    MOVEMENT(MessageChannel.DEBUG_MOVEMENT),
+    PLAYER_ACTIONS(MessageChannel.DEBUG_PLAYER_ACTIONS),
+    ATTACK_RAYTRACE(MessageChannel.DEBUG_ATTACK_RAYTRACE),
 
     ;
 
@@ -607,19 +609,16 @@ public final class BaseStage extends CommandStage {
   private void sendVersionMessage(CommandSender player) {
     boolean hasVersionViewPermission = BukkitPermissionCheck.permissionCheck(player, "intave.command");
 
-    IntaveVersion versionInformation = IntavePlugin.singletonInstance().versions().versionInformation(IntavePlugin.version());
+    IntaveVersion versionInformation = IntavePlugin.singletonInstance().versions().versionInformation(IntavePlugin.versionTag());
     String version;
     if (!hasVersionViewPermission) {
       version = "(version hidden)";
     } else if (versionInformation != null) {
       boolean outdated = versionInformation.outdated();
-      version = IntavePlugin.version() + " (" + (outdated ? "outdated, " : "") + DurationTranslator.translateHours(System.currentTimeMillis() - versionInformation.release()) + " old)";
+      version = IntavePlugin.fullVersion() + " (" + (outdated ? "outdated, " : "") + DurationTranslator.translateHours(System.currentTimeMillis() - versionInformation.release()) + " old)";
     } else {
-      version = IntavePlugin.version() + " (unknown version)";
+      version = IntavePlugin.fullVersion() + " (unknown version)";
     }
-
-    boolean enterprise = (ProtocolMetadata.VERSION_DETAILS & 0x200) != 0;
-    boolean partner = (ProtocolMetadata.VERSION_DETAILS & 0x100) != 0;
 
     String prefix = IntavePlugin.prefix();
     player.sendMessage(new String[]{

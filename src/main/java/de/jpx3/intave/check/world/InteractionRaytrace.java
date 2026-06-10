@@ -964,7 +964,7 @@ public final class InteractionRaytrace extends MetaCheck<InteractionRaytrace.Int
         player.updateInventory();
         refreshBlock(player, targetLocation);
         for (Direction direction : Direction.values()) {
-          Location placedBlock = targetLocation.clone().add(direction.directionVecAsVector());
+          Location placedBlock = targetLocation.clone().add(direction.normalVec());
           refreshBlock(player, placedBlock);
         }
       });

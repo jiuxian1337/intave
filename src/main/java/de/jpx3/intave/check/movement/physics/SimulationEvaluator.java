@@ -1,7 +1,7 @@
 package de.jpx3.intave.check.movement.physics;
 
 import de.jpx3.intave.block.collision.Collision;
-import de.jpx3.intave.check.movement.physics.eval.EvaluationTag;
+import de.jpx3.intave.check.movement.physics.evaluation.EvaluationTag;
 import de.jpx3.intave.math.Hypot;
 import de.jpx3.intave.math.MathHelper;
 import de.jpx3.intave.module.tracker.entity.Entity;
@@ -239,7 +239,7 @@ public final class SimulationEvaluator {
       boolean offsetPositionInLiquid = MovementCharacteristics.isOffsetPositionInLiquid(
         player, movement.boundingBox(), receivedMotionX, liquidMotionY, receivedMotionZ
       );
-      boolean maybeCollidedHorizontally = Collision.nearSolidBlock(user, movement.boundingBox().grow(0.2));
+      boolean maybeCollidedHorizontally = Collision.nearSolidBlock(user, movement.boundingBox().grow(0.2, 0.5, 0.2));
       boolean targetMotion = Math.abs(receivedMotionY - 0.3) < 0.001 || Math.abs(receivedMotionY - 0.34) < 0.001 || Math.abs(receivedMotionY - 0.2470) < 0.001;
       if (maybeCollidedHorizontally && offsetPositionInLiquid && targetMotion) {
         verticalLegitimateDeviation = Math.max(verticalLegitimateDeviation, 0.7f);
@@ -396,12 +396,12 @@ public final class SimulationEvaluator {
     }
 
     // Flying packet
-    double flyingLimit = movement.inWeb ? 0.008 : 0.05;
+    double flyingLimit = 0.05;
     if (movement.receivedFlyingPacketIn(2)) {
       if (movement.onGround) {
         boolean specialWeb = movement.inWeb;
         boolean lessThanExpected = distanceMoved < 0.15;
-        horizontalLegitimateDeviation = Math.max(horizontalLegitimateDeviation, specialWeb ? 0.04 : (lessThanExpected ? 0.115 : flyingLimit));
+        horizontalLegitimateDeviation = Math.max(horizontalLegitimateDeviation, specialWeb ? 0.1 : (lessThanExpected ? 0.115 : flyingLimit));
         tags.add(EvaluationTag.FLYING_ON_GROUND);
       } else {
         horizontalLegitimateDeviation = Math.max(horizontalLegitimateDeviation, flyingLimit);

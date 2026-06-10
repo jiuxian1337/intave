@@ -4,7 +4,6 @@ import de.jpx3.intave.IntavePlugin;
 import de.jpx3.intave.check.Check;
 import de.jpx3.intave.check.CheckViolationLevelDecrementer;
 import de.jpx3.intave.check.world.breakspeedlimiter.CompletionDurationCheck;
-import de.jpx3.intave.check.world.breakspeedlimiter.RestartCheck;
 import de.jpx3.intave.executor.TaskTracker;
 import de.jpx3.intave.user.UserRepository;
 import org.bukkit.Bukkit;
@@ -29,6 +28,6 @@ public final class BreakSpeedLimiter extends Check {
 
   public void setupParts() {
     appendCheckPart(new CompletionDurationCheck(this));
-    appendCheckPart(new RestartCheck(this));
+//    appendCheckPart(new RestartCheck(this));
   }
 }

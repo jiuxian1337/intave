@@ -3,11 +3,9 @@ package de.jpx3.intave.resource;
 import de.jpx3.intave.IntavePlugin;
 import de.jpx3.intave.connect.IntaveDomains;
 import de.jpx3.intave.library.asm.ByteVector;
-import de.jpx3.intave.security.HashAccess;
 
 import java.io.*;
 import java.net.MalformedURLException;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -172,9 +170,9 @@ public final class Resources {
       lastInt = Math.abs(random.nextInt(Math.abs(url.hashCode() ^ lastInt) + 1)) + 1;
     }
     random.nextInt(Math.abs(lastInt) + 1);
-    random.nextInt(IntavePlugin.version().hashCode());
+    random.nextInt(Math.abs(IntavePlugin.fullVersion().hashCode()) + 1);
     long mostSigBits = ((long) Math.abs(identifier.hashCode()) ^ Math.abs(random.nextInt(Byte.MAX_VALUE))) | versionResourceKey();
-    long leastSigBits = ((long) Math.abs(IntavePlugin.version().hashCode()) ^ Math.abs(random.nextInt(Short.MAX_VALUE))) << 32 | random.nextInt();
+    long leastSigBits = ((long) Math.abs(IntavePlugin.fullVersion().hashCode()) ^ Math.abs(random.nextInt(Short.MAX_VALUE))) << 32 | random.nextInt();
     UUID uuid = new UUID(mostSigBits, leastSigBits);
     return uuid.toString().replace("-", "")
       .replace("f", "r")

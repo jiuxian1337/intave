@@ -14,6 +14,10 @@ public abstract class AbstractPacketReader implements PacketReader {
   }
 
   @Override
+  public void flush() {
+  }
+
+  @Override
   public void release() {
     packet = null;
   }

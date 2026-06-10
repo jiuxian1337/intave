@@ -1,6 +1,6 @@
 package de.jpx3.intave.share;
 
-import de.jpx3.intave.check.movement.physics.SimulationEnvironment;
+import de.jpx3.intave.check.movement.physics.environment.SimulationEnvironment;
 import de.jpx3.intave.codec.StreamCodec;
 import de.jpx3.intave.math.Hypot;
 import de.jpx3.intave.packet.Relative;
@@ -164,6 +164,10 @@ public final class Motion {
     return hypot3d(motionX, motionY, motionZ);
   }
 
+  public double lengthSquared() {
+    return motionX * motionX + motionY * motionY + motionZ * motionZ;
+  }
+
   public Vector toBukkitVector() {
     return new Vector(this.motionX, this.motionY, this.motionZ);
   }
@@ -175,5 +179,21 @@ public final class Motion {
   @Override
   public String toString() {
     return "(" + motionX + ", " + motionY + ", " + motionZ + ")";
+  }
+
+	public double partialMotionIn(Direction.Axis axis) {
+    switch (axis) {
+      case X_AXIS:
+        return motionX;
+      case Y_AXIS:
+        return motionY;
+      case Z_AXIS:
+        return motionZ;
+    }
+    throw new IllegalArgumentException("Unknown axis: " + axis);
+	}
+
+  public static Motion newEmpty() {
+    return new Motion(0.0, 0.0, 0.0);
   }
 }
