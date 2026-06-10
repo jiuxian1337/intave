@@ -53,10 +53,10 @@ public final class Libraries {
   }
 
   public static Library fromMavenGradle(String path, String name, String version) {
-    return new Library(path, name, version, "https://repo1.maven.org/maven2");
+    return new Library(path, name, version, "https://maven.aliyun.com/repository/central");
   }
 
   public static Library fromMavenGradle(String path, String name, String version, String suffix) {
-    return new Library(path, name, version, "https://repo1.maven.org/maven2", suffix);
+    return new Library(path, name, version, "https://maven.aliyun.com/repository/central", suffix);
   }
 }

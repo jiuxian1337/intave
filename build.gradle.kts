@@ -387,4 +387,11 @@ tasks {
   test {
     failOnNoDiscoveredTests = false
   }
+
+  runServer {
+    minecraftVersion("1.8.8")
+    systemProperty("com.mojang.eula.agree", "true")
+    jvmArgs("-Xmx2G", "-Xms2G")
+    runDirectory(file("run"))
+  }
 }
