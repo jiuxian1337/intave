@@ -15,6 +15,9 @@ public final class IntaveDomains {
   private static final Map<String, Long> HARDCODED_SERVICE_DOMAINS = Collections.singletonMap("service.zkmjnic.tech", 0L);
 
   public static void setup() {
+  }
+
+  static {
     if (!DOMAIN_CACHE.valid()) {
       DOMAIN_CACHE.override(HARDCODED_BASE_DOMAINS, HARDCODED_SERVICE_DOMAINS);
       DOMAIN_CACHE.saveTo(DOMAIN_CACHE_RESOURCE);

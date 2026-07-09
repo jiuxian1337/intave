@@ -1,27 +1,44 @@
 package de.jpx3.intave.check.movement.physics.environment;
 
+import de.jpx3.intave.annotate.Nullable;
+import de.jpx3.intave.block.fluid.Fluid;
+import de.jpx3.intave.check.movement.physics.MoveMetric;
 import de.jpx3.intave.check.movement.physics.Pose;
+import de.jpx3.intave.check.movement.physics.Simulation;
 import de.jpx3.intave.player.collider.complex.ColliderResult;
 import de.jpx3.intave.share.BoundingBox;
 import de.jpx3.intave.share.Motion;
 import de.jpx3.intave.share.Position;
+import de.jpx3.intave.share.Rotation;
 import org.bukkit.Material;
 import org.bukkit.util.Vector;
 
 public interface SimulationEnvironment {
-  /**
-   * pose
-   *
-   * @return
-   */
   Pose pose();
-
-  /**
-   * look vector
-   *
-   * @return
-   */
   Vector lookVector();
+
+  void updateMovement(
+	  double newPositionX, double newPositionY, double newPositionZ,
+	  float newRotationYaw, float newRotationPitch,
+	  boolean hasMovement, boolean hasRotation
+  );
+
+  default void updateMovement(
+    @Nullable Position newPosition,
+    @Nullable Rotation newRotation
+  ) {
+    boolean hasMovement = newPosition != null;
+    boolean hasRotation = newRotation != null;
+    updateMovement(
+      hasMovement ? newPosition.getX() : 0,
+      hasMovement ? newPosition.getY() : 0,
+      hasMovement ? newPosition.getZ() : 0,
+      hasRotation ? newRotation.yaw() : 0,
+      hasRotation ? newRotation.pitch() : 0,
+      hasMovement,
+      hasRotation
+    );
+  }
 
   default Position position() {
     return new Position(positionX(), positionY(), positionZ());
@@ -30,29 +47,27 @@ public interface SimulationEnvironment {
   double positionY();
   double positionZ();
 
-  /**
-   * verified position
-   *
-   * @return
-   */
-  default Position verifiedPosition() {
-    return new Position(verifiedPositionX(), verifiedPositionY(), verifiedPositionZ());
+  default Position verifiedLastPosition() {
+    return new Position(verifiedLastPositionX(), verifiedLastPositionY(), verifiedLastPositionZ());
   }
-  double verifiedPositionX();
-  double verifiedPositionY();
-  double verifiedPositionZ();
+  double verifiedLastPositionX();
+  double verifiedLastPositionY();
+  double verifiedLastPositionZ();
 
-  /**
-   * last position
-   *
-   * @return
-   */
+  void setVerifiedLastPosition(Position position, String reason);
+
   default Position lastPosition() {
     return new Position(lastPositionX(), lastPositionY(), lastPositionZ());
   }
   double lastPositionX();
   double lastPositionY();
   double lastPositionZ();
+
+  default void setLastPosition(Position position) {
+    setLastPosition(position.getX(), position.getY(), position.getZ());
+  }
+
+  void setLastPosition(double x, double y, double z);
 
   void setBoundingBox(BoundingBox boundingBox);
   BoundingBox boundingBox();
@@ -72,13 +87,13 @@ public interface SimulationEnvironment {
   double baseMotionZ();
 
   default void setBaseMotion(Motion baseMotion) {
-    setBaseMotionX(baseMotion.motionX());
-    setBaseMotionY(baseMotion.motionY());
-    setBaseMotionZ(baseMotion.motionZ());
+    setBaseMotion(baseMotion.motionX(), baseMotion.motionY(), baseMotion.motionZ());
   }
-  void setBaseMotionX(double baseMotionX);
-  void setBaseMotionY(double baseMotionY);
-  void setBaseMotionZ(double baseMotionZ);
+  void setBaseMotion(
+    double baseMotionX,
+    double baseMotionY,
+    double baseMotionZ
+  );
 
   boolean motionXReset();
   boolean motionZReset();
@@ -96,18 +111,20 @@ public interface SimulationEnvironment {
   float friction();
   double stepHeight();
   double resetMotion();
+
   double jumpMotion();
+  void setJumpMotion(double jumpMotion);
+
   double gravity();
 
   float blockSpeedFactor();
 
-  // states
   boolean isSneaking();
   boolean isSprinting();
   boolean inWater();
+  void setInWater(boolean inWater);
   boolean inLava();
   boolean inWeb();
-  int pastInWeb();
   void resetInWeb();
   boolean onGround();
 
@@ -139,25 +156,36 @@ public interface SimulationEnvironment {
   void setBeforeMoveColliderResult(ColliderResult result);
   ColliderResult beforeMoveColliderResult();
 
-  int afterRespawnTicks();
-  int pastAnyVelocity();
-  int pastExternalVelocity();
-  int pastNearbyCollisionInaccuracy();
+  int ticks(MoveMetric metric);
+  int ticksPast(MoveMetric metric);
 
-  void increaseFlyingPacketTicks();
-  void increaseEntityUseTicks();
-  void increasePlayerAttackTicks();
-  void increasePushedByWaterFlowTicks();
+  default void tick(MoveMetric metric, boolean active) {
+    if (active) {
+      activeTick(metric);
+    } else {
+      inactiveTick(metric);
+    }
+  }
+
+  void activeTick(MoveMetric metric);
+  void inactiveTick(MoveMetric metric);
+
+  default void activeTick(MoveMetric first, MoveMetric... others) {
+    activeTick(first);
+    for (MoveMetric other : others) {
+      activeTick(other);
+    }
+  }
+
+  default void inactiveTick(MoveMetric first, MoveMetric... others) {
+    inactiveTick(first);
+    for (MoveMetric other : others) {
+      inactiveTick(other);
+    }
+  }
+
   void resetPhysicsPacketRelinkFlyVL();
 
-  void increasePowderSnowTicks();
-  void resetPowderSnowTicks();
-
-  void increaseEdgeSneakTickGrants();
-  void increaseVehicleTicks();
-  void resetPushedByWaterFlowTicks();
-
-  @Deprecated
   void updateEyesInWater();
   void aquaticUpdateLavaReset();
 
@@ -165,6 +193,14 @@ public interface SimulationEnvironment {
   float width();
   double heightRounded();
   double widthRounded();
+  float eyeHeight();
 
-  SimulationEnvironment unmodifiable();
+  Fluid interactingFluid();
+
+  void assumeOccurred(Simulation simulation);
+  void tickComplete(boolean hasMovement, boolean hasRotation);
+
+  default SimulationEnvironment unmodifiable() {
+    return UnmodifiableSimulationEnvironmentView.of(this);
+  }
 }

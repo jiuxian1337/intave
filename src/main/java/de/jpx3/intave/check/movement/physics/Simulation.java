@@ -10,15 +10,14 @@ import de.jpx3.intave.user.UserLocal;
 import static de.jpx3.intave.math.MathHelper.distanceOf;
 
 public final class Simulation {
-  private static final Simulation INVALID_SIMULATION = new Simulation(MovementConfiguration.noAction(), ColliderResult.invalid());
+  private static final Simulation INVALID_SIMULATION = new Simulation(MovementConfiguration.blank(), ColliderResult.invalid());
   private static final UserLocal<Simulation> SIMULATION_OBJ_CACHE = UserLocal.withInitial(Simulation::new);
 
   private MovementConfiguration configuration;
   private ColliderResult colliderResult;
   private String details = "";
-  private int debugInformation = 0;
 
-  private Simulation() {
+	private Simulation() {
   }
 
   private Simulation(
@@ -33,7 +32,6 @@ public final class Simulation {
     this.configuration = configuration;
     this.colliderResult = colliderResult;
     this.details = "";
-    this.debugInformation = 0;
   }
 
   public boolean wasSprinting() {

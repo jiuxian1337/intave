@@ -1,15 +1,23 @@
 package de.jpx3.intave.check.movement.physics.environment;
 
+import de.jpx3.intave.block.fluid.Fluid;
+import de.jpx3.intave.check.movement.physics.MoveMetric;
 import de.jpx3.intave.check.movement.physics.Pose;
+import de.jpx3.intave.check.movement.physics.Simulation;
 import de.jpx3.intave.player.collider.complex.ColliderResult;
 import de.jpx3.intave.share.BoundingBox;
 import de.jpx3.intave.share.Motion;
+import de.jpx3.intave.share.Position;
 import org.bukkit.Material;
 import org.bukkit.util.Vector;
+
+import java.util.EnumMap;
+import java.util.Map;
 
 import static de.jpx3.intave.share.ClientMath.cos;
 import static de.jpx3.intave.share.ClientMath.sin;
 
+@Deprecated
 public final class TestSimulationEnvironment implements SimulationEnvironment {
   private double positionX, positionY, positionZ;
   private double verifiedPositionX, verifiedPositionY, verifiedPositionZ;
@@ -28,17 +36,27 @@ public final class TestSimulationEnvironment implements SimulationEnvironment {
   private boolean inWater, inLava;
   private boolean sprinting, sneaking;
   private boolean collidedHorizontally, collidedVertically;
-  private int pastInWeb = 100;
-  private final float frictionPosSubtraction = 1;
+	private final float frictionPosSubtraction = 1;
   private double fallDistance;
   private boolean inWeb;
   private boolean onGround;
   private boolean lastOnGround;
 
-  private final Motion motionProcessorContext = new Motion();
+  private Fluid interactingFluid;
   private BoundingBox boundingBox = BoundingBox.fromBounds(0, 0, 0, 0, 0, 0);
 
   private Vector motionMultiplier;
+
+  private final Map<MoveMetric, Integer> activeTracker = new EnumMap<>(MoveMetric.class);
+  private final Map<MoveMetric, Integer> pastTracker = new EnumMap<>(MoveMetric.class);
+
+  {
+    for (MoveMetric value : MoveMetric.values()) {
+      activeTracker.put(value, value.activeDefault());
+      pastTracker.put(value, value.pastDefault());
+    }
+  }
+
 
   public void copyPositionToLastPosition() {
     lastPositionX = positionX;
@@ -173,6 +191,15 @@ public final class TestSimulationEnvironment implements SimulationEnvironment {
   }
 
   @Override
+  public void updateMovement(double newPositionX, double newPositionY, double newPositionZ, float newRotationYaw, float newRotationPitch, boolean hasMovement, boolean hasRotation) {
+    positionX = newPositionX;
+    positionY = newPositionY;
+    positionZ = newPositionZ;
+    yaw = newRotationYaw;
+    pitch = newRotationPitch;
+  }
+
+  @Override
   public double positionX() {
     return positionX;
   }
@@ -188,18 +215,25 @@ public final class TestSimulationEnvironment implements SimulationEnvironment {
   }
 
   @Override
-  public double verifiedPositionX() {
+  public double verifiedLastPositionX() {
     return verifiedPositionX;
   }
 
   @Override
-  public double verifiedPositionY() {
+  public double verifiedLastPositionY() {
     return verifiedPositionY;
   }
 
   @Override
-  public double verifiedPositionZ() {
+  public double verifiedLastPositionZ() {
     return verifiedPositionZ;
+  }
+
+  @Override
+  public void setVerifiedLastPosition(Position position, String reason) {
+    verifiedPositionX = position.getX();
+    verifiedPositionY = position.getY();
+    verifiedPositionZ = position.getZ();
   }
 
   @Override
@@ -216,6 +250,14 @@ public final class TestSimulationEnvironment implements SimulationEnvironment {
   public double lastPositionZ() {
     return lastPositionZ;
   }
+
+  @Override
+  public void setLastPosition(double x, double y, double z) {
+    lastPositionX = x;
+    lastPositionY = y;
+    lastPositionZ = z;
+  }
+
 
   @Override
   public void setBoundingBox(BoundingBox boundingBox) {
@@ -258,17 +300,9 @@ public final class TestSimulationEnvironment implements SimulationEnvironment {
   }
 
   @Override
-  public void setBaseMotionX(double baseMotionX) {
+  public void setBaseMotion(double baseMotionX, double baseMotionY, double baseMotionZ) {
     this.baseMotionX = baseMotionX;
-  }
-
-  @Override
-  public void setBaseMotionY(double baseMotionY) {
     this.baseMotionY = baseMotionY;
-  }
-
-  @Override
-  public void setBaseMotionZ(double baseMotionZ) {
     this.baseMotionZ = baseMotionZ;
   }
 
@@ -338,6 +372,11 @@ public final class TestSimulationEnvironment implements SimulationEnvironment {
   }
 
   @Override
+  public void setJumpMotion(double jumpMotion) {
+    this.jumpHeight = jumpMotion;
+  }
+
+  @Override
   public double gravity() {
     return gravity;
   }
@@ -370,11 +409,6 @@ public final class TestSimulationEnvironment implements SimulationEnvironment {
   @Override
   public boolean inWeb() {
     return inWeb;
-  }
-
-  @Override
-  public int pastInWeb() {
-    return pastInWeb;
   }
 
   @Override
@@ -488,53 +522,15 @@ public final class TestSimulationEnvironment implements SimulationEnvironment {
   }
 
   @Override
-  public int afterRespawnTicks() {
-    return 0;
+  public void activeTick(MoveMetric metric) {
+    activeTracker.put(metric, activeTracker.getOrDefault(metric, 0) + 1);
+    pastTracker.put(metric, 0);
   }
 
   @Override
-  public int pastAnyVelocity() {
-    return 100;
-  }
-
-  @Override
-  public int pastExternalVelocity() {
-    return 100;
-  }
-
-  @Override
-  public int pastNearbyCollisionInaccuracy() {
-    return 100;
-  }
-
-  @Override
-  public void increaseFlyingPacketTicks() {
-
-  }
-
-  @Override
-  public void increaseEntityUseTicks() {
-
-  }
-
-  @Override
-  public void increasePlayerAttackTicks() {
-
-  }
-
-  @Override
-  public void increasePushedByWaterFlowTicks() {
-
-  }
-
-  @Override
-  public void resetPushedByWaterFlowTicks() {
-
-  }
-
-  @Override
-  public void updateEyesInWater() {
-
+  public void inactiveTick(MoveMetric metric) {
+    activeTracker.put(metric, 0);
+    pastTracker.put(metric, ticksPast(metric) + 1);
   }
 
   @Override
@@ -543,22 +539,17 @@ public final class TestSimulationEnvironment implements SimulationEnvironment {
   }
 
   @Override
-  public void increasePowderSnowTicks() {
-
+  public int ticks(MoveMetric metric) {
+    return activeTracker.getOrDefault(metric, 0);
   }
 
   @Override
-  public void resetPowderSnowTicks() {
-
+  public int ticksPast(MoveMetric metric) {
+    return pastTracker.getOrDefault(metric, metric.pastDefault());
   }
 
   @Override
-  public void increaseEdgeSneakTickGrants() {
-
-  }
-
-  @Override
-  public void increaseVehicleTicks() {
+  public void updateEyesInWater() {
 
   }
 
@@ -585,6 +576,26 @@ public final class TestSimulationEnvironment implements SimulationEnvironment {
   @Override
   public double widthRounded() {
     return width;
+  }
+
+  @Override
+  public float eyeHeight() {
+    return height - 0.08F;
+  }
+
+  @Override
+  public Fluid interactingFluid() {
+    return interactingFluid;
+  }
+
+  @Override
+  public void assumeOccurred(Simulation simulation) {
+
+  }
+
+  @Override
+  public void tickComplete(boolean hasMovement, boolean hasRotation) {
+
   }
 
   @Override

@@ -19,7 +19,9 @@ import org.bukkit.inventory.PlayerInventory;
 import java.util.Collections;
 import java.util.UUID;
 
-public final class SimulatorBasicTests extends Tests {
+import static org.bukkit.GameMode.SURVIVAL;
+
+public final class SimulatorBasicTests extends IntegrationTests {
   private static final UUID EMPTY_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
 
   private User testUser;
@@ -46,6 +48,18 @@ public final class SimulatorBasicTests extends Tests {
             return EMPTY_ID;
           case "getActivePotionEffects":
             return Collections.emptyList();
+          case "isFlying":
+          case "getAllowFlight":
+          case "isSprinting":
+          case "isSneaking":
+            return false;
+          case "getFallDistance":
+            return 0.0f;
+          case "getGameMode":
+            return SURVIVAL;
+          case "getFlySpeed":
+          case "getWalkSpeed":
+            return 0.2f;
         }
         return null;
       }
@@ -53,7 +67,7 @@ public final class SimulatorBasicTests extends Tests {
 
     MockFullBlockStaticPlane plane = new MockFullBlockStaticPlane();
     plane.horizontalFill(1);
-    testUser = UserFactory.createTestUserFor(player, s -> {
+    testUser = UserFactory.createTestUserFor(player, (usr, s) -> {
       switch (s) {
         case "collider":
           return collider;
@@ -92,7 +106,7 @@ public final class SimulatorBasicTests extends Tests {
     }
 
     Simulator simulator = Simulators.PLAYER;
-    MovementConfiguration configuration = MovementConfiguration.noAction();
+    MovementConfiguration configuration = MovementConfiguration.blank();
     TestSimulationEnvironment environment = new TestSimulationEnvironment();
 
     environment.setPositionY(250);
